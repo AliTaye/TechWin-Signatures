@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامج التوقيع الإلكتروني</title>
+    <!-- تضمين مكتبة html2canvas للتمكن من حفظ الصورة -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- تضمين Tailwind CSS للتنسيق -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- تضمين خط Tajawal لدعم اللغة العربية بشكل جميل -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f3f4f6;
+        }
+        canvas {
+            touch-action: none; /* لمنع تمرير الشاشة عند الرسم باللمس */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- الحاوية الرئيسية -->
+    <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md">
+        
+        <!-- ================= القسم الأول: نموذج الإدخال ================= -->
+        <div id="input-section">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">سجل بياناتك</h1>
+            
+            <div class="space-y-4">
+                <!-- حقل الاسم -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2" for="userName">الاسم الكامل</label>
+                    <input type="text" id="userName" placeholder="أدخل اسمك هنا" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- حقل الدفعة -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2" for="userBatch">الدفعة</label>
+                    <select id="userBatch" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="" disabled selected>اختر الدفعة...</option>
+                        <option value="1">الدفعة الأولى (1)</option>
+                        <option value="2">الدفعة الثانية (2)</option>
+                        <option value="3">الدفعة الثالثة (3)</option>
+                    </select>
+                </div>
+
+                <!-- حقل التوقيع (Canvas) -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">التوقيع (ارسم توقيعك)</label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 relative">
+                        <canvas id="signatureCanvas" class="w-full h-64 cursor-crosshair rounded-lg"></canvas>
+                        <!-- زر مسح التوقيع -->
+                        <button type="button" onclick="clearSignature()" class="absolute bottom-2 left-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition">
+                            مسح التوقيع
+                        </button>
+                    </div>
+                </div>
+
+                <!-- رسالة الخطأ -->
+                <p id="error-msg" class="text-red-500 text-sm hidden">الرجاء إكمال جميع البيانات ورسم التوقيع.</p>
+
+                <!-- زر الاعتماد -->
+                <button onclick="generateCard()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 mt-4">
+                    إصدار البطاقة
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= القسم الثاني: العرض النهائي (مخفي افتراضياً) ================= -->
+        <div id="output-section" class="hidden">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">بطاقة التوقيع</h1>
+            
+            <!-- المساحة البيضاء المربعة المطلوبة -->
+            <div id="signature-card" class="bg-white border-2 border-gray-200 shadow-sm rounded-xl aspect-square flex flex-col p-4 mx-auto relative overflow-hidden" style="max-width: 350px;">
+                
+                <!-- مساحة التوقيع في الأعلى/الوسط -->
+                <div class="flex-1 flex items-center justify-center w-full p-2">
+                    <img id="result-signature" src="" alt="توقيع المستخدم" class="w-full h-full object-contain mix-blend-multiply">
+                </div>
+
+                <!-- خط فاصل -->
+                <hr class="border-gray-200 mb-3">
+
+                <!-- الاسم والدفعة بجانب بعضهما -->
+                <div class="flex items-center justify-center gap-2 pb-2">
+                    <h2 id="result-name" class="text-xl md:text-2xl font-bold text-gray-900"></h2>
+                    <span class="text-gray-300 select-none">|</span>
+                    <p id="result-batch" dir="ltr" class="font-bold text-xl md:text-2xl"></p>
+                </div>
+            </div>
+
+            <!-- أزرار التحكم -->
+            <div class="flex gap-3 mt-6">
+                <button onclick="downloadImage()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                    تنزيل كصورة
+                </button>
+                <button onclick="resetApp()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-200">
+                    عودة
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= سكريبت التشغيل (JavaScript) ================= -->
+    <script>
+        // المتغيرات الأساسية للـ Canvas
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let hasSignature = false;
+
+        // ضبط أبعاد الـ Canvas الحقيقية لتتطابق مع حجمها في الشاشة لضمان دقة الرسم
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            // تهيئة إعدادات الفرشاة
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000000';
+        }
+        
+        // استدعاء التحجيم عند تحميل الصفحة وعند تغير حجم النافذة
+        window.addEventListener('load', resizeCanvas);
+        window.addEventListener('resize', resizeCanvas);
+
+        // دوال مساعدة لحساب إحداثيات الماوس أو اللمس
+        function getCoordinates(event) {
+            const rect = canvas.getBoundingClientRect();
+            if (event.touches && event.touches.length > 0) {
+                return {
+                    x: event.touches[0].clientX - rect.left,
+                    y: event.touches[0].clientY - rect.top
+                };
+            }
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        // أحداث بدء الرسم
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            hasSignature = true;
+            const coords = getCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+        }
+
+        // أحداث أثناء الرسم
+        function draw(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const coords = getCoordinates(e);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+        }
+
+        // أحداث إنهاء الرسم
+        function stopDrawing(e) {
+            e.preventDefault();
+            isDrawing = false;
+            ctx.closePath();
+        }
+
+        // ربط أحداث الماوس
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // ربط أحداث اللمس (للهواتف)
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // مسح التوقيع
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSignature = false;
+        }
+
+        // توليد البطاقة النهائية
+        function generateCard() {
+            const name = document.getElementById('userName').value.trim();
+            const batch = document.getElementById('userBatch').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            // التحقق من المدخلات
+            if (!name || !batch || !hasSignature) {
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            errorMsg.classList.add('hidden');
+
+            // نقل البيانات إلى قسم العرض
+            document.getElementById('result-name').textContent = name;
+            
+            const batchElement = document.getElementById('result-batch');
+            batchElement.textContent = '#' + batch;
+            
+            // إزالة الألوان السابقة وتعيين اللون الجديد بناءً على الدفعة
+            batchElement.classList.remove('text-blue-600', 'text-orange-500', 'text-purple-600');
+            if (batch === '1') {
+                batchElement.classList.add('text-blue-600'); // الدفعة الأولى - أزرق
+            } else if (batch === '2') {
+                batchElement.classList.add('text-orange-500'); // الدفعة الثانية - برتقالي
+            } else if (batch === '3') {
+                batchElement.classList.add('text-purple-600'); // الدفعة الثالثة - بنفسجي
+            }
+            
+            // تحويل الرسمة إلى صورة (Data URL)
+            const signatureDataUrl = canvas.toDataURL('image/png');
+            document.getElementById('result-signature').src = signatureDataUrl;
+
+            // إخفاء نموذج الإدخال وإظهار النتيجة
+            document.getElementById('input-section').classList.add('hidden');
+            document.getElementById('output-section').classList.remove('hidden');
+        }
+
+        // إعادة ضبط التطبيق للبدء من جديد
+        function resetApp() {
+            document.getElementById('userName').value = '';
+            document.getElementById('userBatch').value = '';
+            clearSignature();
+            
+            document.getElementById('output-section').classList.add('hidden');
+            document.getElementById('input-section').classList.remove('hidden');
+            resizeCanvas(); // إعادة التحجيم للتأكد من جاهزية الـ Canvas
+        }
+
+        // دالة تنزيل البطاقة كصورة
+        function downloadImage() {
+            const card = document.getElementById('signature-card');
+            
+            html2canvas(card, { 
+                scale: 3, // دقة عالية للصورة
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const userName = document.getElementById('result-name').textContent;
+                const link = document.createElement('a');
+                link.download = `توقيع_${userName}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
