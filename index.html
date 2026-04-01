@@ -107,7 +107,8 @@
                 <div class="flex items-center justify-center gap-2 pb-2">
                     <h2 id="result-name" class="text-xl md:text-2xl font-bold text-gray-900"></h2>
                     <span class="text-gray-300 select-none">|</span>
-                    <p id="result-batch" dir="ltr" class="font-bold text-xl md:text-2xl"></p>
+                    <!-- سيتم تحديد الاتجاه برمجياً لضمان ظهور الهاشتاج بشكل صحيح -->
+                    <p id="result-batch" class="font-bold text-xl md:text-2xl"></p>
                 </div>
             </div>
 
@@ -221,17 +222,25 @@
             document.getElementById('result-name').textContent = name;
             
             const batchElement = document.getElementById('result-batch');
-            batchElement.textContent = '#' + batch;
+            
+            // تخصيص النص بناءً على الدفعة (الأولى، الثانية، الثالثة، أو النخبة)
+            if (batch === '4') {
+                batchElement.textContent = '#النخبة';
+                batchElement.setAttribute('dir', 'rtl'); // اتجاه من اليمين لليسار للنصوص العربية
+            } else {
+                batchElement.textContent = '#' + batch;
+                batchElement.setAttribute('dir', 'ltr'); // اتجاه من اليسار لليمين للأرقام والرموز
+            }
             
             // إزالة الألوان السابقة وتعيين اللون الجديد بناءً على الدفعة
-            batchElement.classList.remove('text-blue-600', 'text-orange-500', 'text-purple-600');
+            batchElement.classList.remove('text-blue-600', 'text-orange-500', 'text-purple-600', 'text-red-600');
             if (batch === '1') {
                 batchElement.classList.add('text-blue-600'); // الدفعة الأولى - أزرق
             } else if (batch === '2') {
                 batchElement.classList.add('text-orange-500'); // الدفعة الثانية - برتقالي
             } else if (batch === '3') {
                 batchElement.classList.add('text-purple-600'); // الدفعة الثالثة - بنفسجي
-            }  else if (batch === '4') {
+            } else if (batch === '4') {
                 batchElement.classList.add('text-red-600'); // النخبة - أحمر
             }
             
